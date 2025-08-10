@@ -2,6 +2,7 @@
 !.gitignore
 !*.ipynb
 !*.py
+!*.yml
 # Model files
 *.pt
 *.h5
