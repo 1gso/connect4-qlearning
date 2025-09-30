@@ -700,7 +700,7 @@ def complete_td_training_loop(starting_position=1e6, total_iterations=10):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load initial models
-    checkpoint = torch.load("qnet_mc_pretrained.pth", map_location=device)
+    checkpoint = torch.load(os.path.expanduser('~/Downloads/qnet_mc_pretrained.pth', map_location=device)
     online_model = QNetwork(input_dim=138).to(device)
     online_model.load_state_dict(checkpoint['model_state_dict'])
 
