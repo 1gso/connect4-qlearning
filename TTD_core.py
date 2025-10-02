@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
+import argparse
 # Named tuple for clarity
 # noinspection PyTypeChecker
 TrainingTuple = namedtuple('TrainingTuple', ['state_action', 'initial_q', 'target_q', 'td_error', 'move_number', 'game_length'])
@@ -630,8 +631,16 @@ def train_with_smart_buffer(online_model, replay_buffer, scaler,
 
     return losses, td_errors_history
 #%%
+parser = argparse.ArgumentParser(description="Run TD training loop with command line parameters.")
+parser.add_argument("--starting_position", type=float, default=1e6,
+                    help="Initial starting position (default: 1e6)")
+parser.add_argument("--total_iterations", type=int, default=10,
+                    help="Number of iterations (default: 10)")
+parser.add_argument("--suffix", type=int, default='x',
+                    help="Suffix inside network checkpoint qnet_x_...")
 
-#%%
+args = parser.parse_args()
+
 # Cell that disassembles full_training_pipeline
 # This particular cell takes 6000 game codes and gets ready to produce TD difference cells.
 codes_file = os.path.expanduser('~/Downloads/replayMem.txt')
@@ -693,7 +702,7 @@ losses_main, td_hist = train_with_smart_buffer_sgd(
     debug_first_batch=False
 )
 #%%
-def complete_td_training_loop(starting_position=1e6, total_iterations=10):
+def complete_td_training_loop(starting_position=args.starting_position, total_iterations=args.total_iterations):
     """
     Full TD learning with refreshing buffers
     """
@@ -764,6 +773,17 @@ def complete_td_training_loop(starting_position=1e6, total_iterations=10):
             debug_first_batch=True
         )
 
+        # print("Training on fresh TD targets...")
+        # losses, td_hist = train_with_smart_buffer(
+        #     online_model,
+        #     replay_buffer,
+        #     scaler,
+        #     epochs=100,
+        #     batch_size=256,
+        #     lr=5e-5 * (0.9 ** iteration),  # Decay LR each iteration
+        #     use_prioritized=True
+        # )
+
         all_losses.extend(losses)
 
         # 5. Update target network every 30 iterations
@@ -772,11 +792,13 @@ def complete_td_training_loop(starting_position=1e6, total_iterations=10):
             print("✓ Updated target network")
 
         # 6. Save checkpoint
-        torch.save({
-            'model_state_dict': online_model.state_dict(),  # The trained model
-            'scaler': scaler,                               # For inference
-            'iteration': iteration,                         # Track progress
-        }, f'qnet_td_iter_{iteration+1}.pth')
+        if (iteration + 1) % 3 ==0:
+            torch.save({
+                'model_state_dict': online_model.state_dict(),  # The trained model
+                'scaler': scaler,                               # For inference
+                'iteration': iteration,                         # Track progress
+            }, f'qnet{args.suffix}_td_iter_{iteration+1}.pth')
+
         # 7. Optional: Quick test vs original
         if (iteration + 1) % 5 == 0:
             print("\nQuick performance check... which we are not doing")
