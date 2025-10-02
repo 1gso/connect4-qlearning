@@ -636,7 +636,7 @@ parser.add_argument("--starting_position", type=float, default=1e6,
                     help="Initial starting position (default: 1e6)")
 parser.add_argument("--total_iterations", type=int, default=10,
                     help="Number of iterations (default: 10)")
-parser.add_argument("--suffix", type=int, default='x',
+parser.add_argument("--suffix", type=str, default='x',
                     help="Suffix inside network checkpoint qnet_x_...")
 
 args = parser.parse_args()
