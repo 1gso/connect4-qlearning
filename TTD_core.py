@@ -197,7 +197,7 @@ class SmartReplayBuffer:
         """
         Sample using pre-computed TD errors with endgame position bonus
 
-        Args:
+        Arguments:
             alpha: Priority exponent for TD errors
             beta: Importance sampling correction
             endgame_bonus: Multiplier for endgame positions
@@ -345,7 +345,7 @@ def train_with_smart_buffer_sgd(online_model, replay_buffer, scaler,
     Training using SGD for transparent gradient updates.
     Perfect for debugging TD learning behavior.
 
-    Args:
+    Arguments:
         online_model: Q-network to train
         replay_buffer: SmartReplayBuffer with pre-computed tuples
         scaler: Feature scaler
@@ -638,6 +638,8 @@ parser.add_argument("--total_iterations", type=int, default=10,
                     help="Number of iterations (default: 10)")
 parser.add_argument("--suffix", type=str, default='x',
                     help="Suffix inside network checkpoint qnet_x_...")
+parser.add_argument("--save_frequency", type=int, default=3,
+                    help="How often the network is saved")
 
 args = parser.parse_args()
 
@@ -767,12 +769,11 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
             online_model,
             replay_buffer,
             scaler,
-            epochs=100,
             lr=1e-3,
             momentum=0,  # Pure gradient descent
-            debug_first_batch=True
         )
 
+        #
         # print("Training on fresh TD targets...")
         # losses, td_hist = train_with_smart_buffer(
         #     online_model,
@@ -780,8 +781,8 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
         #     scaler,
         #     epochs=100,
         #     batch_size=256,
+        #     use_prioritized=True,
         #     lr=5e-5 * (0.9 ** iteration),  # Decay LR each iteration
-        #     use_prioritized=True
         # )
 
         all_losses.extend(losses)
@@ -792,7 +793,7 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
             print("✓ Updated target network")
 
         # 6. Save checkpoint
-        if (iteration + 1) % 3 ==0:
+        if (iteration + 1) % args.save_frequency ==0:
             torch.save({
                 'model_state_dict': online_model.state_dict(),  # The trained model
                 'scaler': scaler,                               # For inference
