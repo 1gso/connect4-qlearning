@@ -25,12 +25,118 @@ class QNetwork(nn.Module):
         self.net = nn.Sequential(*layers)
     def forward(self, x): return self.net(x).squeeze(-1)
 #%%
+import time
+from collections import deque
 
+
+class IterationTimer:
+    """
+    Track iteration timing with exponential moving average for ETA calculation
+    """
+
+    def __init__(self, total_iterations, ema_alpha=0.3, history_size=5):
+        """
+        Args:
+            total_iterations: Total number of iterations planned
+            ema_alpha: Weight for new observations (higher = more responsive)
+            history_size: Number of recent intervals to track
+        """
+        self.total_iterations = total_iterations
+        self.start_time = time.time()
+        self.iteration_times = deque(maxlen=history_size)
+        self.last_timestamp = self.start_time
+        self.ema_duration = None
+        self.ema_alpha = ema_alpha
+        self.completed_iterations = 0
+
+    def mark_iteration(self, iteration_num):
+        """
+        Mark completion of an iteration and return timing stats
+
+        Args:
+            iteration_num: Current iteration number (0-based)
+
+        Returns:
+            dict with timing statistics
+        """
+        current_time = time.time()
+        iteration_duration = current_time - self.last_timestamp
+
+        # Update EMA
+        if self.ema_duration is None:
+            self.ema_duration = iteration_duration
+        else:
+            self.ema_duration = (self.ema_alpha * iteration_duration +
+                                 (1 - self.ema_alpha) * self.ema_duration)
+
+        # Store in history
+        self.iteration_times.append(iteration_duration)
+        self.last_timestamp = current_time
+        self.completed_iterations = iteration_num + 1
+
+        # Calculate statistics
+        elapsed = current_time - self.start_time
+        remaining_iterations = self.total_iterations - self.completed_iterations
+
+        # Use EMA for ETA, but also consider recent average
+        if len(self.iteration_times) > 0:
+            recent_avg = np.mean(self.iteration_times)
+            # Blend EMA with recent average for stability
+            estimated_per_iteration = 0.7 * self.ema_duration + 0.3 * recent_avg
+        else:
+            estimated_per_iteration = self.ema_duration
+
+        time_remaining = remaining_iterations * estimated_per_iteration
+        eta = current_time + time_remaining
+
+        return {
+            'elapsed': elapsed,
+            'time_remaining': time_remaining,
+            'eta': eta,
+            'iteration_duration': iteration_duration,
+            'ema_duration': self.ema_duration,
+            'avg_recent': np.mean(self.iteration_times) if self.iteration_times else iteration_duration,
+            'iterations_per_hour': 3600 / estimated_per_iteration if estimated_per_iteration > 0 else 0
+        }
+
+    @staticmethod
+    def format_time(seconds):
+        """Format seconds into human-readable string"""
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        elif seconds < 3600:
+            minutes = seconds / 60
+            return f"{minutes:.1f}m"
+        else:
+            hours = seconds / 3600
+            return f"{hours:.1f}h"
+
+    def get_progress_string(self, iteration_num):
+        """Get formatted progress string for printing"""
+        stats = self.mark_iteration(iteration_num)
+
+        elapsed_str = self.format_time(stats['elapsed'])
+        remaining_str = self.format_time(stats['time_remaining'])
+        eta_str = time.strftime('%H:%M:%S', time.localtime(stats['eta']))
+
+        progress_pct = (self.completed_iterations / self.total_iterations) * 100
+
+        # Build progress bar
+        bar_length = 20
+        filled = int(bar_length * self.completed_iterations / self.total_iterations)
+        bar = '█' * filled + '░' * (bar_length - filled)
+
+        return (f"Progress: [{bar}] {progress_pct:.1f}% | "
+                f"Elapsed: {elapsed_str} | "
+                f"Remaining: {remaining_str} | "
+                f"ETA: {eta_str} | "
+                f"Speed: {stats['iterations_per_hour']:.1f} it/h")
 def get_current_q(state_action_features, online_model, scaler, player):
     """Get current Q-value prediction from online model"""
     scaled = scaler.transform([state_action_features])
     with torch.no_grad():
-        q = online_model(torch.FloatTensor(scaled).to(online_model.device if hasattr(online_model, 'device') else 'cpu')).item()
+        q = online_model(torch.FloatTensor(scaled).to(online_model.device if
+                                                      hasattr(online_model, 'device') else 'cpu')).item()
     return q * player  # Adjust for player perspective
 
 def calculate_target_q(moves, position_i, player, online_model, target_model, scaler, feature_gen, gamma=0.99):
@@ -82,7 +188,8 @@ def calculate_target_q(moves, position_i, player, online_model, target_model, sc
                 features = np.concatenate([next_curr_feats, next_feats])
                 scaled = scaler.transform([features])
                 with torch.no_grad():
-                    q = online_model(torch.FloatTensor(scaled).to(online_model.device if hasattr(online_model, 'device') else 'cpu')).item() * player
+                    q = online_model(torch.FloatTensor(scaled).to(
+                        online_model.device if hasattr(online_model, 'device') else 'cpu')).item() * player
                     online_q_values.append((col, q))
 
     if not online_q_values:
@@ -640,6 +747,10 @@ parser.add_argument("--suffix", type=str, default='x',
                     help="Suffix inside network checkpoint qnet_x_...")
 parser.add_argument("--save_frequency", type=int, default=3,
                     help="How often the network is saved")
+parser.add_argument("--replay_buffer_size", type=int, default=100_000,
+                    help="How often the network is saved")
+parser.add_argument("--number_games_queried", type=int, default=6_000,
+                    help="How often the network is saved")
 
 args = parser.parse_args()
 
@@ -722,10 +833,13 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
     feature_gen = FeatureGenerator()
 
     all_losses = []
+    timer = IterationTimer(total_iterations=total_iterations, ema_alpha=0.3, history_size=5)
 
     for iteration in range(total_iterations):
         print(f"\n{'='*50}")
         print(f"TD ITERATION {iteration+1}/{total_iterations}")
+        if iteration > 0:
+            print(timer.get_progress_string(iteration - 1))
         print(f"{'='*50}")
 
         # 1. Load NEW games each iteration
@@ -739,7 +853,7 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
             for _ in range(start_pos):
                 f.readline()
             for i, line in enumerate(f):
-                if i >= 6000:
+                if i >= args.number_games_queried:
                     break
                 game_codes.append(line.strip())
 
@@ -756,7 +870,7 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
         )
 
         # 3. Create fresh buffer
-        replay_buffer = SmartReplayBuffer(capacity=100000)
+        replay_buffer = SmartReplayBuffer(capacity=args.replay_buffer_size)
         for tuple_data in training_tuples:
             replay_buffer.push(tuple_data)
 
