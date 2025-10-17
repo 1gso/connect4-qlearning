@@ -6,6 +6,7 @@ import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import argparse
+import random
 # Named tuple for clarity
 # noinspection PyTypeChecker
 TrainingTuple = namedtuple('TrainingTuple', ['state_action', 'initial_q', 'target_q', 'td_error', 'move_number', 'game_length'])
@@ -760,7 +761,7 @@ skip_rows = 1e6
 skip_rows = int(skip_rows)
 game_codes = []
 with open(codes_file, 'r') as f:
-    print(f"Skipping a {skip_rows} rows")
+    print(f"Skipping a {skip_rows} rows <== this is just testing")
     for _ in range(skip_rows):
         f.readline()
     for counter_main, line in enumerate(f):
