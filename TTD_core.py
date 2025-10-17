@@ -214,7 +214,7 @@ def calculate_target_q(moves, position_i, player, online_model, target_model, sc
             target_q_value = target_model(torch.FloatTensor(best_scaled).to(target_model.device if hasattr(target_model, 'device') else 'cpu')).item() * player
 
     return gamma * target_q_value
-#%%
+
 #Most advanced so far
 def generate_training_tuples_with_td(game_codes, online_model, target_model, scaler,
                                      feature_gen,
@@ -279,7 +279,6 @@ def generate_training_tuples_with_td(game_codes, online_model, target_model, sca
                 return training_tuples
 
     return training_tuples
-#%%
 
 # This one is smart - can prioritize samples into batches
 class SmartReplayBuffer:
@@ -844,6 +843,7 @@ def complete_td_training_loop(starting_position=args.starting_position, total_it
 
         # 1. Load NEW games each iteration
         start_pos = int(starting_position + iteration * 10000)
+        start_pos = (start_pos + random.randint(1, 5000)) % 6_123_001
         print(f"Loading games from position {start_pos}")
 
         game_codes = []
