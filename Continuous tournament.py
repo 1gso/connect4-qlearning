@@ -409,6 +409,7 @@ import time
 from datetime import timedelta
 from trueskill import Rating, rate_1vs1
 import random
+import argparse
 
 parser.add_argument('--rounds', type=int, default=150,
                     help='Number of tournament rounds')
