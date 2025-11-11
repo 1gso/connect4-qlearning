@@ -411,6 +411,8 @@ from trueskill import Rating, rate_1vs1
 import random
 import argparse
 
+parser = argparse.ArgumentParser(description="Continuous tournament runner")
+
 parser.add_argument('--rounds', type=int, default=150,
                     help='Number of tournament rounds')
 parser.add_argument('--games', type=int, default=24,
