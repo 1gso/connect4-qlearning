@@ -247,7 +247,7 @@ class SelfPlayArena:
     def run_tournament(self) -> Dict:
         """Run a tournament of multiple games"""
         print(f"\n=== Starting tournament: {self.config.num_games} games ===")
-        print(f"Alpha ε={self.config.epsilon_alpha}, Bravo ε={self.config.epsilon_bravo}")
+        print(f"Alpha eps={self.config.epsilon_alpha}, Bravo eps={self.config.epsilon_bravo}")
 
         start_time = time.time()
 
@@ -430,12 +430,25 @@ from datetime import timedelta
 from trueskill import Rating, rate_1vs1
 import random
 
+# In[10]:
+
+
+# Download all .pth files
+subprocess.run([
+    'scp',
+    'az:work/connect4-qlearning/*.pth',
+    'models_pth/'
+], check=True)
+
+print(f"Downloaded models to: {os.path.abspath('models_pth')}")
+
+
 # Configuration
-GAMES_PER_MATCH = 4  # Reduced from 500 for faster iterations
+GAMES_PER_MATCH = 24  # Reduced from 500 for faster iterations
 KAPPA = 3  # Conservative ranking multiplier
-MAX_ROUNDS = 10
+MAX_ROUNDS = 150
 SEPARATION_THRESHOLD = 1.5  # mu - 3*sigma difference needed
-EPSILON = 0.0
+EPSILON = 0.1
 
 # Initialize ratings
 model_paths = glob.glob('models_pth/*.pth')
@@ -499,19 +512,6 @@ def play_match(model_a, model_b, n_games, epsilon):
 
 
 
-# In[10]:
-
-
-# Download all .pth files
-subprocess.run([
-    'scp',
-    'az:work/connect4-qlearning/*.pth',
-    'models_pth/'
-], check=True)
-
-print(f"Downloaded models to: {os.path.abspath('models_pth')}")
-
-
 # In[22]:
 
 
@@ -558,7 +558,7 @@ while round_num < MAX_ROUNDS:
             else:  # Draw
                 ratings[model_a], ratings[model_b] = rate_1vs1(ratings[model_a], ratings[model_b], drawn=True)
         print(f"  Result: {a_wins}-{b_wins}-{draws}")
-        print(f"  Ratings: {ratings[model_a].mu:.1f}±{ratings[model_a].sigma:.1f} vs {ratings[model_b].mu:.1f}±{ratings[model_b].sigma:.1f}")
+        print(f"  Ratings: {ratings[model_a].mu:.1f}+-{ratings[model_a].sigma:.1f} vs {ratings[model_b].mu:.1f}+-{ratings[model_b].sigma:.1f}")
 
     # 4. Check convergence
     cons_scores = sorted([conservative_score(ratings[p]) for p in model_paths], reverse=True)
@@ -578,7 +578,7 @@ while round_num < MAX_ROUNDS:
     print(f"\n  Current rankings:")
     for i, path in enumerate(ranked[:5], 1):
         r = ratings[path]
-        print(f"    {i}. {os.path.basename(path)}: {r.mu:.1f}±{r.sigma:.1f} (cons: {conservative_score(r):.1f})")
+        print(f"    {i}. {os.path.basename(path)}: {r.mu:.1f}+-{r.sigma:.1f} (cons: {conservative_score(r):.1f})")
     
     if separation > SEPARATION_THRESHOLD and all(ratings[p].sigma < 2.0 for p in ranked[:3]):
         print(f"\n✓ Top 3 converged with separation {separation:.3f}")
@@ -602,7 +602,7 @@ final_ranking = sorted(model_paths, key=lambda p: conservative_score(ratings[p])
 for i, path in enumerate(final_ranking, 1):
     r = ratings[path]
     print(f"{i}. {os.path.basename(path)}")
-    print(f"   μ={r.mu:.2f}, σ={r.sigma:.2f}, conservative={conservative_score(r):.2f}")
+    print(f"   mu={r.mu:.2f}, sigma={r.sigma:.2f}, conservative={conservative_score(r):.2f}")
 
 
 # In[ ]:
