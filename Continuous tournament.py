@@ -1,15 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import os
 import subprocess
 import glob
-
-
-# In[2]:
 
 
 # Connect 4 Self-Play Arena
@@ -27,8 +21,6 @@ from dataclasses import dataclass
 import time
 
 
-# In[24]:
-
 
 @dataclass
 class SelfPlayConfig:
@@ -44,9 +36,6 @@ class SelfPlayConfig:
     game_save_path: str = "selfplay_games.pkl"
 
 
-# In[4]:
-
-
 @dataclass
 class GameResult:
     """Store results of a single game"""
@@ -57,9 +46,6 @@ class GameResult:
     alpha_first: bool
     epsilon_alpha: float
     epsilon_bravo: float
-
-
-# In[5]:
 
 
 class QNetwork(nn.Module):
@@ -77,9 +63,6 @@ class QNetwork(nn.Module):
 
     def forward(self, x):
         return self.net(x).squeeze(-1)
-
-
-# In[6]:
 
 
 class SelfPlayArena:
@@ -422,16 +405,15 @@ class SelfPlayArena:
         plt.show()
 
 
-# In[19]:
-
-
 import time
 from datetime import timedelta
 from trueskill import Rating, rate_1vs1
 import random
 
-# In[10]:
-
+parser.add_argument('--rounds', type=int, default=150,
+                    help='Number of tournament rounds')
+parser.add_argument('--games', type=int, default=24,
+                    help='Games per matchup in each round')
 
 # Download all .pth files
 subprocess.run([
@@ -444,9 +426,9 @@ print(f"Downloaded models to: {os.path.abspath('models_pth')}")
 
 
 # Configuration
-GAMES_PER_MATCH = 24  # Reduced from 500 for faster iterations
+GAMES_PER_MATCH = args.games  # Reduced from 500 for faster iterations
 KAPPA = 3  # Conservative ranking multiplier
-MAX_ROUNDS = 150
+MAX_ROUNDS = args.rounds
 SEPARATION_THRESHOLD = 1.5  # mu - 3*sigma difference needed
 EPSILON = 0.1
 
@@ -457,9 +439,6 @@ random.shuffle(model_paths)
 ratings = {path: Rating() for path in model_paths}
 match_history = {}  # Track who played whom
 
-
-
-# In[20]:
 
 
 def conservative_score(rating):
@@ -493,9 +472,6 @@ def make_swiss_pairs(ranked_models, match_history):
     return pairs
 
 
-# In[21]:
-
-
 def play_match(model_a, model_b, n_games, epsilon):
     """Play n games and return win counts"""
     config = SelfPlayConfig(
@@ -510,9 +486,6 @@ def play_match(model_a, model_b, n_games, epsilon):
     results = arena.run_tournament()
     return results['alpha_wins'], results['bravo_wins'], results['draws']
 
-
-
-# In[22]:
 
 
 # Main loop
@@ -585,9 +558,6 @@ while round_num < MAX_ROUNDS:
         break
 
 
-# In[23]:
-
-
 # Final results
 print(f"\n{'='*60}")
 print(f"TOURNAMENT COMPLETE")
@@ -603,9 +573,6 @@ for i, path in enumerate(final_ranking, 1):
     r = ratings[path]
     print(f"{i}. {os.path.basename(path)}")
     print(f"   mu={r.mu:.2f}, sigma={r.sigma:.2f}, conservative={conservative_score(r):.2f}")
-
-
-# In[ ]:
 
 
 
