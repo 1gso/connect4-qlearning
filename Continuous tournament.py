@@ -561,7 +561,7 @@ while round_num < MAX_ROUNDS:
         print(f"    {i}. {os.path.basename(path)}: {r.mu:.1f}+-{r.sigma:.1f} (cons: {conservative_score(r):.1f})")
     
     if separation > SEPARATION_THRESHOLD and all(ratings[p].sigma < 2.0 for p in ranked[:3]):
-        print(f"\n✓ Top 3 converged with separation {separation:.3f}")
+        print(f"\n Top 3 converged with separation {separation:.3f}")
         break
 
 
