@@ -418,6 +418,10 @@ parser.add_argument('--rounds', type=int, default=150,
 parser.add_argument('--games', type=int, default=24,
                     help='Games per matchup in each round')
 
+# Actually parse the arguments!
+args = parser.parse_args()
+
+
 # Download all .pth files
 subprocess.run([
     'scp',
